@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext"],
+    "types": ["https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts"],
+    "skipLibCheck": true,
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["./**/*.ts"]
+}

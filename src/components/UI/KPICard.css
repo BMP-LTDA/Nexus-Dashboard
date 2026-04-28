@@ -1,0 +1,121 @@
+.kpi-card {
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: var(--transition);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.kpi-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.kpi-icon-primary { background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+.kpi-icon-green   { background: var(--accent-green-bg); color: var(--accent-green); }
+.kpi-icon-red     { background: var(--accent-red-bg);   color: var(--accent-red);   }
+.kpi-icon-amber   { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.kpi-icon-blue    { background: var(--accent-blue-bg);  color: var(--accent-blue);  }
+.kpi-icon-cyan    { background: rgba(6,182,212,0.1);    color: var(--accent-cyan);  }
+
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.kpi-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 20px;
+}
+
+.trend-up      { color: var(--accent-green); background: var(--accent-green-bg); }
+.trend-down    { color: var(--accent-red);   background: var(--accent-red-bg);   }
+.trend-neutral { color: var(--text-secondary); background: var(--bg-tertiary);   }
+
+.kpi-period {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Accent Line */
+.kpi-accent-line {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpi-card:hover .kpi-accent-line { opacity: 1; }
+
+.kpi-line-primary { background: var(--accent-primary); }
+.kpi-line-green   { background: var(--accent-green);   }
+.kpi-line-red     { background: var(--accent-red);     }
+.kpi-line-amber   { background: var(--accent-amber);   }
+.kpi-line-blue    { background: var(--accent-blue);    }
+.kpi-line-cyan    { background: var(--accent-cyan);    }
+
+/* GA4 Blur Effect */
+.blur-container {
+  filter: blur(5px);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  transition: all 0.3s ease;
+}
+
+.blur-overlay {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(30, 41, 59, 0.8);
+  padding: 6px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+}

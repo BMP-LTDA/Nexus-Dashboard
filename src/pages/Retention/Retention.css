@@ -1,0 +1,39 @@
+.cohort-table {
+  overflow-x: auto;
+}
+
+.cohort-header, .cohort-row {
+  display: grid;
+  grid-template-columns: 60px repeat(6, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.cohort-cell {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-radius: 4px;
+}
+
+.cohort-month-label, .cohort-head {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: transparent !important;
+}
+
+.cohort-month {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent !important;
+  text-align: left;
+  padding-left: 0;
+  display: flex;
+  align-items: center;
+}

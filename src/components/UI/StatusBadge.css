@@ -1,0 +1,15 @@
+.status-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-success { background: var(--accent-green-bg);  color: var(--accent-green); }
+.badge-danger  { background: var(--accent-red-bg);    color: var(--accent-red);   }
+.badge-warning { background: var(--accent-amber-bg);  color: var(--accent-amber); }
+.badge-info    { background: rgba(99,102,241,0.12);   color: var(--accent-primary); }
+.badge-neutral { background: var(--bg-tertiary);      color: var(--text-secondary); }
+.badge-up      { background: var(--accent-green-bg);  color: var(--accent-green); }
+.badge-down    { background: var(--accent-red-bg);    color: var(--accent-red);   }

@@ -1,0 +1,46 @@
+.chart-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.chart-card-title-group { flex: 1; }
+
+.chart-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-info-icon {
+  color: var(--text-muted);
+  cursor: help;
+  transition: var(--transition);
+}
+.chart-info-icon:hover { color: var(--text-secondary); }
+
+.chart-card-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.chart-card-action { flex-shrink: 0; }
+
+.chart-card-body {
+  padding: 16px 20px 20px;
+}

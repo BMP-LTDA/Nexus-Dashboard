@@ -1,0 +1,89 @@
+.data-table-wrap { overflow: hidden; }
+
+.data-table-scroll { overflow-x: auto; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table thead tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.data-table th.sortable { cursor: pointer; }
+.data-table th.sortable:hover { color: var(--text-secondary); }
+.data-table th.align-right { text-align: right; }
+
+.th-content { display: flex; align-items: center; gap: 4px; }
+
+.sort-icons { display: flex; flex-direction: column; gap: 1px; }
+.sort-icons svg { color: var(--text-muted); }
+.sort-icons svg.active { color: var(--accent-primary); }
+
+.data-table td {
+  padding: 11px 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.data-table td.align-right { text-align: right; }
+
+.table-row {
+  transition: background 0.15s ease;
+}
+
+.table-row:hover td { background: var(--bg-tertiary); }
+.table-row:last-child td { border-bottom: none; }
+
+/* Pagination */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination-info {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.page-btn {
+  min-width: 28px; height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.page-btn:hover:not(:disabled) { background: var(--bg-tertiary); color: var(--text-primary); }
+.page-btn.active { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
