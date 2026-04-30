@@ -10,9 +10,15 @@ export function useRealtimeOrders(currentAccountSlug) {
   const refreshRef = useRef(refreshData);
   useEffect(() => { refreshRef.current = refreshData; }, [refreshData]);
 
+  // Prevent concurrent fetches: track in-flight request and debounce rapid Realtime events
+  const isFetchingRef = useRef(false);
+  const debounceTimerRef = useRef(null);
+
   // Core fetch: pulls orders from Supabase → writes to in-memory cache → triggers re-render
   const loadFromSupabase = useCallback(async (slug) => {
     if (!slug) return;
+    if (isFetchingRef.current) return; // skip if a fetch is already in-flight
+    isFetchingRef.current = true;
     try {
       // 1. Resolve Account UUID
       const { data: accountData, error: accountError } = await supabase
@@ -52,6 +58,8 @@ export function useRealtimeOrders(currentAccountSlug) {
 
     } catch (err) {
       console.error('[useRealtimeOrders] Error fetching orders:', err);
+    } finally {
+      isFetchingRef.current = false;
     }
   }, []);
 
@@ -83,8 +91,11 @@ export function useRealtimeOrders(currentAccountSlug) {
           table: 'orders',
           filter: `account_id=eq.${accountData.id}`
         }, () => {
-          // Debounced refetch on any change (new order from webhook, etc.)
-          loadFromSupabase(currentAccountSlug);
+          // Debounce: coalesce rapid Realtime events into a single fetch
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            loadFromSupabase(currentAccountSlug);
+          }, 1500);
         })
         .subscribe();
     };
@@ -92,6 +103,7 @@ export function useRealtimeOrders(currentAccountSlug) {
     setupRealtime();
 
     return () => {
+      clearTimeout(debounceTimerRef.current);
       if (subscription) supabase.removeChannel(subscription);
     };
   }, [currentAccountSlug, loadFromSupabase]);

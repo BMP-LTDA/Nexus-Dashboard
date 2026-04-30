@@ -43,6 +43,20 @@ export const ordersService = {
   },
 
   /**
+   * Statuses that represent a completed/paid order — must stay in sync with mockData.js
+   */
+  _isBilled(status, pStatus) {
+    const BILLED_STATUSES  = ['invoiced', 'shipped', 'faturado', 'enviado', 'entregue', 'concluído', 'concluido', 'completed'];
+    const APPROVED_PAYMENTS = ['approved', 'paid', 'aprovado', 'pago'];
+    return BILLED_STATUSES.includes(status) || APPROVED_PAYMENTS.includes(pStatus);
+  },
+
+  _isCanceled(status, pStatus) {
+    return ['canceled', 'cancelado', 'refunded', 'estornado', 'cancelled'].includes(status) ||
+           ['rejected', 'chargeback', 'refunded'].includes(pStatus);
+  },
+
+  /**
    * Busca e agrega métricas de receita a partir da tabela 'orders'
    */
   async getRevenueMetrics(accountSlug, period) {
@@ -67,9 +81,9 @@ export const ordersService = {
       let net = 0, prevNet = 0;
       let count = 0, prevCount = 0;
       let billed = 0, prevBilled = 0;
-      
+
       let approvalCount = 0, cancelCount = 0, analysisCount = 0;
-      
+
       const currentRecords = [];
       const priorRecords = [];
 
@@ -79,9 +93,9 @@ export const ordersService = {
         const status = (o.status || '').toLowerCase();
         const pStatus = (o.payment_status || '').toLowerCase();
 
-        const isCanceled = status === 'canceled' || pStatus === 'rejected' || status === 'cancelado';
-        const isBilled = status === 'invoiced' || pStatus === 'approved' || status === 'faturado';
-        const isAnalysis = pStatus === 'pending' || pStatus === 'in_analysis';
+        const isCanceled = this._isCanceled(status, pStatus);
+        const isBilled = this._isBilled(status, pStatus);
+        const isAnalysis = pStatus === 'pending' || pStatus === 'in_analysis' || pStatus === 'in_process';
 
         if (rowDate >= currentStart && rowDate <= currentEnd) {
           currentRecords.push(o);
@@ -168,10 +182,11 @@ export const ordersService = {
 
       const customers = {};
       records.forEach(o => {
-        const isBilled = o.status === 'invoiced' || o.payment_status === 'approved' || o.status === 'faturado';
-        if (!isBilled) return;
+        const status = (o.status || '').toLowerCase();
+        const pStatus = (o.payment_status || '').toLowerCase();
+        if (!this._isBilled(status, pStatus)) return;
 
-        const name = o.customer_name?.trim() || 'Desconhecido';
+        const name = o.customer_email?.trim() || o.customer_name?.trim() || 'Desconhecido';
         if (!customers[name]) {
           customers[name] = { 
             firstPurchase: o.created_at, 
@@ -261,8 +276,9 @@ export const ordersService = {
       const productsMap = {};
 
       records.forEach(o => {
-        const isBilled = o.status === 'invoiced' || o.payment_status === 'approved' || o.status === 'faturado';
-        if (!isBilled) return;
+        const status = (o.status || '').toLowerCase();
+        const pStatus = (o.payment_status || '').toLowerCase();
+        if (!this._isBilled(status, pStatus)) return;
 
         const items = Array.isArray(o.items) ? o.items : [];
         items.forEach(i => {
@@ -318,16 +334,18 @@ export const ordersService = {
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
         const p = (o.payment_status || '').toLowerCase();
-        return s === 'invoiced' || p === 'approved' || s === 'faturado';
+        return this._isBilled(s, p);
       };
+
+      const customerKey = (o) => (o.customer_email?.trim() || o.customer_name?.trim() || '').toLowerCase();
 
       // Primeira compra de cada cliente
       const firstPurchase = {};
       records.filter(isBilled).forEach(o => {
-        const name = (o.customer_name || '').trim();
-        if (!name || name === 'Desconhecido') return;
-        if (!firstPurchase[name] || o.created_at < firstPurchase[name]) {
-          firstPurchase[name] = o.created_at;
+        const key = customerKey(o);
+        if (!key || key === 'desconhecido') return;
+        if (!firstPurchase[key] || o.created_at < firstPurchase[key]) {
+          firstPurchase[key] = o.created_at;
         }
       });
 
@@ -336,8 +354,8 @@ export const ordersService = {
       const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
       records.filter(isBilled).forEach(o => {
-        const name = (o.customer_name || '').trim();
-        if (!name || name === 'Desconhecido') return;
+        const name = customerKey(o);
+        if (!name || name === 'desconhecido') return;
         
         const d = new Date(o.created_at);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -387,26 +405,28 @@ export const ordersService = {
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
         const p = (o.payment_status || '').toLowerCase();
-        return s === 'invoiced' || p === 'approved' || s === 'faturado';
+        return this._isBilled(s, p);
       };
+
+      const customerKey = (o) => (o.customer_email?.trim() || o.customer_name?.trim() || '').toLowerCase();
 
       const customers = {};
       records.filter(isBilled).forEach(o => {
-        const name = (o.customer_name || '').trim();
-        if (!name || name === 'Desconhecido') return;
+        const key = customerKey(o);
+        if (!key || key === 'desconhecido') return;
         const d = new Date(o.created_at);
-        if (!customers[name]) {
-          customers[name] = { firstPurchase: d, purchases: new Set() };
+        if (!customers[key]) {
+          customers[key] = { firstPurchase: d, purchases: new Set() };
         } else {
-          if (d < customers[name].firstPurchase) customers[name].firstPurchase = d;
+          if (d < customers[key].firstPurchase) customers[key].firstPurchase = d;
         }
       });
 
       // Register all purchase months relative to first purchase
       records.filter(isBilled).forEach(o => {
-        const name = (o.customer_name || '').trim();
-        if (!name || name === 'Desconhecido' || !customers[name]) return;
-        const c = customers[name];
+        const key = customerKey(o);
+        if (!key || key === 'desconhecido' || !customers[key]) return;
+        const c = customers[key];
         const firstM = c.firstPurchase.getFullYear() * 12 + c.firstPurchase.getMonth();
         const d = new Date(o.created_at);
         const thisM = d.getFullYear() * 12 + d.getMonth();
@@ -465,17 +485,19 @@ export const ordersService = {
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
         const p = (o.payment_status || '').toLowerCase();
-        return s === 'invoiced' || p === 'approved' || s === 'faturado';
+        return this._isBilled(s, p);
       };
+
+      const customerKey = (o) => (o.customer_email?.trim() || o.customer_name?.trim() || '').toLowerCase();
 
       const customers = {};
       records.filter(isBilled).forEach(o => {
-        const name = (o.customer_name || '').trim();
-        if (!name || name === 'Desconhecido') return;
-        if (!customers[name]) customers[name] = { orders: 0, revenue: 0, lastPurchase: o.created_at };
-        customers[name].orders++;
-        customers[name].revenue += Number(o.amount || 0);
-        if (o.created_at > customers[name].lastPurchase) customers[name].lastPurchase = o.created_at;
+        const key = customerKey(o);
+        if (!key || key === 'desconhecido') return;
+        if (!customers[key]) customers[key] = { orders: 0, revenue: 0, lastPurchase: o.created_at };
+        customers[key].orders++;
+        customers[key].revenue += Number(o.amount || 0);
+        if (o.created_at > customers[key].lastPurchase) customers[key].lastPurchase = o.created_at;
       });
 
       const now = new Date();

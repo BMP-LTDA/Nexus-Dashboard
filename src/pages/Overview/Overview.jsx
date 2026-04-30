@@ -14,6 +14,7 @@ import { useFilter } from '../../contexts/FilterContext';
 import { getRevenueChartData, getRevenueByChannelPeriod, getOrderStatusByPeriod } from '../../data/mockData';
 import { adsService } from '../../services/ads';
 import { ordersService } from '../../services/orders';
+import { pixelService } from '../../services/pixelService';
 import './Overview.css';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -44,60 +45,57 @@ export default function Overview({ currentAccount }) {
   const orderStatusData   = useMemo(() => getOrderStatusByPeriod(currentAccount, period, multiplier),                 [currentAccount, period, multiplier, dataVersion]);
 
   useEffect(() => {
-    async function loadKpis() {
+    async function loadAll() {
       if (!currentAccount) return;
-      const rev = await ordersService.getRevenueMetrics(currentAccount, period);
-      const ret = await ordersService.getRetentionMetrics(currentAccount, period);
+
+      // Fetch revenue, retention, ads e pixel em paralelo
+      const [rev, ret, adMetrics, pixelMetrics] = await Promise.all([
+        ordersService.getRevenueMetrics(currentAccount, period),
+        ordersService.getRetentionMetrics(currentAccount, period),
+        adsService.getAdMetrics(currentAccount, period),
+        pixelService.getFunnelMetrics(currentAccount, period),
+      ]);
+
       if (rev && ret) {
+        const hasPx = pixelMetrics?.hasData;
         setKpis({
-          revenue: { value: rev.net, change: rev.netChange, trend: rev.netChange >= 0 ? 'up' : 'down' },
-          orders: { value: rev.billed, change: rev.billedChange, trend: rev.billedChange >= 0 ? 'up' : 'down' },
-          avgTicket: { value: rev.avgTicket, change: rev.avgTicketChange, trend: rev.avgTicketChange >= 0 ? 'up' : 'down' },
-          conversion: { value: '2.1%', change: 0.2, trend: 'up' }, // Ainda manual (requer sessions reais de Traffic pra cruzar com orders)
-          newCustomers: { value: ret.newCustomers.value, change: ret.newCustomers.change, trend: ret.newCustomers.change >= 0 ? 'up' : 'down' },
-          sessions: { value: '42.841', change: 15.3, trend: 'up' }, // Mock para placeholder do GA4 real, seria calculado dividindo orders por conv
-          rawTotals: {
-            orders: rev.rawTotals.billed,
-            revenue: rev.rawTotals.net
-          }
+          revenue:      { value: rev.net,       change: rev.netChange,       trend: rev.netChange >= 0       ? 'up' : 'down' },
+          orders:       { value: rev.billed,     change: rev.billedChange,    trend: rev.billedChange >= 0    ? 'up' : 'down' },
+          avgTicket:    { value: rev.avgTicket,  change: rev.avgTicketChange, trend: rev.avgTicketChange >= 0 ? 'up' : 'down' },
+          conversion:   hasPx
+            ? { value: pixelMetrics.conversionRate, change: pixelMetrics.conversionChange, trend: pixelMetrics.conversionChange >= 0 ? 'up' : 'down' }
+            : { value: '—', change: 0, trend: 'neutral' },
+          newCustomers: { value: ret.newCustomers, change: ret.newCustomersChange, trend: ret.newCustomersChange >= 0 ? 'up' : 'down' },
+          sessions:     hasPx
+            ? { value: pixelMetrics.sessions.toLocaleString('pt-BR'), change: pixelMetrics.sessionsChange, trend: pixelMetrics.sessionsChange >= 0 ? 'up' : 'down' }
+            : { value: '—', change: 0, trend: 'neutral' },
+          rawTotals:    { orders: rev.rawTotals.billed, revenue: rev.rawTotals.net },
         });
       }
-    }
-    loadKpis();
-  }, [currentAccount, period, multiplier, dataVersion]);
 
-  useEffect(() => {
-    async function loadAds() {
-      if (!currentAccount) return;
-      const metrics = await adsService.getAdMetrics(currentAccount, period);
-      if (metrics && metrics.rawTotals.spend > 0) {
-        const totalSpend = metrics.rawTotals.spend;
-        
-        const totalRevenueStr = String(kpis?.revenue?.value || "0");
-        const totalRevenue = parseFloat(totalRevenueStr.replace(/[^\d,-]/g, '').replace(',', '.')) || 0;
-        const roasVal = totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(2) : '0.00';
-
-        const orders = kpis?.rawTotals?.orders || kpis?.orders?.value?.replace(/\D/g, '') || 1;
-        const ordersNum = typeof orders === 'number' ? orders : parseInt(orders, 10) || 1;
-        const cpsVal = ordersNum > 0 ? (totalSpend / ordersNum) : 0;
-        
-        const spendDeltaValue = metrics.deltas.totalSpend.value || 0;
+      if (adMetrics && adMetrics.rawTotals.spend > 0) {
+        const totalSpend = adMetrics.rawTotals.spend;
+        const netRevenue = rev?.rawTotals?.net ?? 0;
+        const roasVal = totalSpend > 0 ? (netRevenue / totalSpend).toFixed(2) : '0.00';
+        const billedOrders = rev?.rawTotals?.billed ?? 1;
+        const cpsVal = billedOrders > 0 ? totalSpend / billedOrders : 0;
+        const spendDelta = adMetrics.deltas.totalSpend.value || 0;
 
         setAdSpend({
-          spend: metrics.kpis.totalSpend,
-          spendChange: spendDeltaValue,
-          spendTrend: spendDeltaValue > 0 ? 'up' : spendDeltaValue < 0 ? 'down' : 'neutral',
+          spend: adMetrics.kpis.totalSpend,
+          spendChange: spendDelta,
+          spendTrend: spendDelta > 0 ? 'up' : spendDelta < 0 ? 'down' : 'neutral',
           cps: `R$ ${cpsVal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
           cpsChange: 0,
           cpsTrend: 'neutral',
           roasVal: parseFloat(roasVal),
-          hasData: true
+          hasData: true,
         });
       } else {
         setAdSpend({ spend: 'R$ 0,00', spendChange: 0, spendTrend: 'neutral', cps: 'R$ 0,00', cpsChange: 0, cpsTrend: 'neutral', roasVal: 0, hasData: false });
       }
     }
-    loadAds();
+    loadAll();
   }, [currentAccount, period, multiplier, dataVersion]);
 
   return (

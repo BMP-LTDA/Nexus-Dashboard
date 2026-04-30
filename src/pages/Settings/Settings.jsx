@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Database, Globe, ChevronRight, Store, Copy, CheckCircle, Plus, RefreshCcw } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Shield, Palette, Database, Globe, ChevronRight, Store, Copy, CheckCircle, Plus, RefreshCcw, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import './Settings.css';
@@ -10,7 +10,10 @@ const settingSections = [
     id: 'profile', icon: User, label: 'Perfil', desc: 'Gerencie informações da conta',
   },
   {
-    id: 'integrations', icon: Database, label:'Integrações / Dados', desc:'Importação Bagy e APIs' 
+    id: 'integrations', icon: Database, label: 'Integrações / Dados', desc: 'Importação Bagy e APIs'
+  },
+  {
+    id: 'pixel', icon: Zap, label: 'Pixel Nexus', desc: 'Rastreamento de conversão próprio'
   },
   {
     id: 'notifications', icon: Bell, label: 'Notificações', desc: 'Configure alertas e avisos',
@@ -77,20 +80,30 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const { refreshAccounts } = useAuth();
 
+  // Pixel State
+  const [copiedPixel, setCopiedPixel] = useState(false);
+
   // Meta Ads State
   const [metaAdAccountId, setMetaAdAccountId] = useState('');
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [isSyncingMeta, setIsSyncingMeta] = useState(false);
   const [metaSyncResult, setMetaSyncResult] = useState(null);
 
+  // Google Ads State
+  const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState('');
+  const [isSavingGoogle, setIsSavingGoogle] = useState(false);
+  const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
+  const [googleSyncResult, setGoogleSyncResult] = useState(null);
+
   // Load current GA config
   React.useEffect(() => {
     async function loadGA() {
       if (!currentAccount) return;
       const slug = typeof currentAccount === 'string' ? currentAccount : currentAccount.id;
-      const { data, error } = await supabase.from('accounts').select('ga_property_id, meta_ad_account_id').eq('slug', slug).single();
+      const { data, error } = await supabase.from('accounts').select('ga_property_id, meta_ad_account_id, google_ads_customer_id').eq('slug', slug).single();
       if (data && !error) {
         setGaPropertyId(data.ga_property_id || '');
+        setGoogleAdsCustomerId(data.google_ads_customer_id || '');
         setMetaAdAccountId(data.meta_ad_account_id || '');
       }
     }
@@ -206,6 +219,7 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
           subtotal: parseCurrency(row['subtotal'] || row['Subtotal'] || '0'),
           discount: parseCurrency(row['discount'] || row['Desconto'] || row['Valor do Desconto'] || '0'),
           customerName: row['customers__via__customer_id__name'] || row['Nome do Cliente'] || row['Cliente'] || 'Desconhecido',
+          customerEmail: (row['customers__via__customer_id__email'] || row['E-mail do Cliente'] || row['Email'] || '').toLowerCase().trim(),
           city: row['Order Addresses__city'] || row['Cidade'] || '',
           state: row['Order Addresses__state'] || row['Estado'] || '',
           paymentStatus: (row['Order Payments__status'] || row['Status do Pagamento'] || 'approved').toLowerCase(),
@@ -280,6 +294,7 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
             created_at: o.createdAt || new Date().toISOString(),
             amount: Number(o.total) || 0,
             customer_name: o.customerName || 'Desconhecido',
+            customer_email: o.customerEmail || null,
             payment_status: o.paymentStatus || 'approved',
             status: o.status || 'invoiced',
             items: o.items || []
@@ -774,6 +789,105 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
                 </div>
               </div>
 
+              {/* Google Ads */}
+              <div className="card settings-panel" style={{ marginTop: '24px' }}>
+                <div className="settings-panel-header">
+                  <h2 className="settings-panel-title">Google Ads (API Automática)</h2>
+                  <p className="settings-panel-subtitle">Sincronize gastos diários do Google Ads automaticamente via API</p>
+                </div>
+                <div style={{ padding: '20px 24px 24px' }}>
+                  <div className="settings-field" style={{ marginBottom: 16 }}>
+                    <label className="field-label">Customer ID</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="Ex: 123-456-7890 ou 1234567890"
+                        value={googleAdsCustomerId}
+                        onChange={e => setGoogleAdsCustomerId(e.target.value)}
+                      />
+                      <button
+                        className="btn-primary"
+                        style={{ whiteSpace: 'nowrap' }}
+                        disabled={isSavingGoogle}
+                        onClick={async () => {
+                          setIsSavingGoogle(true);
+                          try {
+                            const slug = typeof currentAccount === 'string' ? currentAccount : currentAccount.id;
+                            const { error } = await supabase.from('accounts')
+                              .update({ google_ads_customer_id: googleAdsCustomerId || null })
+                              .eq('slug', slug);
+                            if (error) throw error;
+                            window.dispatchEvent(new CustomEvent('nexus_notification', {
+                              detail: { title: 'Google Ads', desc: 'Customer ID salvo com sucesso.', type: 'success' }
+                            }));
+                          } catch (err) {
+                            window.dispatchEvent(new CustomEvent('nexus_notification', {
+                              detail: { title: 'Erro', desc: err.message, type: 'error' }
+                            }));
+                          } finally { setIsSavingGoogle(false); }
+                        }}
+                      >
+                        {isSavingGoogle ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                      Encontre em: Google Ads → canto superior direito → Customer ID (formato XXX-XXX-XXXX).
+                    </p>
+                  </div>
+
+                  {googleAdsCustomerId && (
+                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          className="btn-secondary"
+                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                          disabled={isSyncingGoogle}
+                          onClick={async () => {
+                            setIsSyncingGoogle(true);
+                            setGoogleSyncResult(null);
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const slug = typeof currentAccount === 'string' ? currentAccount : currentAccount.id;
+                              const res = await fetch('https://vvtalmhfdchhwlzqgnvt.supabase.co/functions/v1/google-ads-sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                                body: JSON.stringify({ accountSlug: slug, datePreset: 'last_30d' })
+                              });
+                              const data = await res.json();
+                              if (data.error) setGoogleSyncResult({ type: 'error', msg: data.error });
+                              else {
+                                setGoogleSyncResult({ type: 'success', msg: data.message });
+                                window.dispatchEvent(new CustomEvent('nexus_notification', {
+                                  detail: { title: 'Google Ads Sincronizado!', desc: data.message, type: 'success' }
+                                }));
+                              }
+                            } catch (err) {
+                              setGoogleSyncResult({ type: 'error', msg: err.message });
+                            } finally { setIsSyncingGoogle(false); }
+                          }}
+                        >
+                          <RefreshCcw size={14} style={isSyncingGoogle ? { animation: 'spin 1s linear infinite' } : {}} />
+                          {isSyncingGoogle ? 'Sincronizando...' : 'Sincronizar Agora (Últimos 30 dias)'}
+                        </button>
+                      </div>
+                      {googleSyncResult && (
+                        <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 6, fontSize: 13,
+                          backgroundColor: googleSyncResult.type === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                          color: googleSyncResult.type === 'error' ? '#EF4444' : '#10B981',
+                          border: `1px solid ${googleSyncResult.type === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
+                          {googleSyncResult.msg}
+                        </div>
+                      )}
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12 }}>
+                        ⚠️ Requer as secrets <code>GOOGLE_ADS_DEVELOPER_TOKEN</code>, <code>GCP_CLIENT_ID</code>, <code>GCP_CLIENT_SECRET</code> e <code>GCP_REFRESH_TOKEN</code> configuradas no Supabase.
+                        O sync automático roda toda semana via cron.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Nova Loja */}
               <div className="card settings-panel" style={{ marginTop: '24px' }}>
                 <div className="settings-panel-header">
@@ -863,6 +977,118 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
               </div>
             </>
           )}
+
+          {activeSection === 'pixel' && (() => {
+            const slug = typeof currentAccount === 'string' ? currentAccount : currentAccount?.id || 'minha-loja';
+            const snippet = `<!-- Nexus Pixel — Cole antes de </body> -->
+<script src="https://vvtalmhfdchhwlzqgnvt.supabase.co/storage/v1/object/public/scripts/nexus-pixel.js"></script>
+<script>
+  // Substitua '${slug}' pelo slug exato da sua loja
+  (function(w,d){ var s=d.createElement('script'); s.src=
+    'https://vvtalmhfdchhwlzqgnvt.supabase.co/functions/v1/track';
+  })(window,document);
+  window.__nexusAccount = '${slug}';
+</script>`;
+
+            const pixelHost = window.location.origin; // usa o domínio do dashboard deployado
+            const cleanSnippet = `<!-- Nexus Pixel | loja: ${slug} -->
+<script>
+window.__nexusAccount = '${slug}';
+(function(){
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = '${pixelHost}/nexus-pixel.js';
+  document.head.appendChild(s);
+})();
+</script>
+
+<!-- Eventos manuais (cole nos locais indicados do tema Bagy):                           -->
+<!-- Add to Cart  → nexusPixel.addToCart({ name: 'Produto', price: 99.90, quantity: 1 }) -->
+<!-- Checkout     → nexusPixel.beginCheckout({ value: 99.90 })                           -->
+<!-- Compra       → nexusPixel.purchase({ order_id: '{{id}}', value: 99.90 })            -->`;
+
+            return (
+              <div className="card settings-panel">
+                <div className="settings-panel-header">
+                  <h2 className="settings-panel-title">Pixel Nexus</h2>
+                  <p className="settings-panel-subtitle">
+                    Rastreie sessões, carrinho, checkout e compras diretamente na sua loja
+                  </p>
+                </div>
+
+                <div style={{ padding: '20px 24px 24px' }}>
+                {/* Status */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '14px 16px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  <Zap size={18} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Como funciona
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+                      O pixel é um script leve (~2KB) instalado na loja. Ele rastreia cada etapa do funil e envia os dados para o Supabase via Edge Function segura. Nenhum cookie de terceiros — LGPD friendly.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Snippet */}
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label className="field-label" style={{ margin: 0 }}>
+                      Código de instalação — loja: <strong>{slug}</strong>
+                    </label>
+                    <button
+                      className="btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(cleanSnippet);
+                        setCopiedPixel(true);
+                        setTimeout(() => setCopiedPixel(false), 2000);
+                      }}
+                    >
+                      {copiedPixel ? <><CheckCircle size={13} /> Copiado!</> : <><Copy size={13} /> Copiar</>}
+                    </button>
+                  </div>
+                  <pre style={{
+                    background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                    borderRadius: 8, padding: '14px 16px', fontSize: 11, color: 'var(--text-secondary)',
+                    overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, lineHeight: 1.6
+                  }}>
+                    {cleanSnippet}
+                  </pre>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                    Cole este código antes de <code>&lt;/body&gt;</code> no tema da sua loja Bagy em{' '}
+                    <strong>Aparência → Tema → Editar HTML/CSS</strong>.
+                  </p>
+                </div>
+
+                {/* Eventos */}
+                <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px' }}>
+                    Eventos rastreados automaticamente
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { event: 'page_view',      desc: 'Toda visita a uma página',             auto: true  },
+                      { event: 'add_to_cart',    desc: 'Produto adicionado ao carrinho',        auto: false },
+                      { event: 'begin_checkout', desc: 'Início do fluxo de checkout',           auto: false },
+                      { event: 'purchase',       desc: 'Compra confirmada (pós-pagamento)',      auto: false },
+                    ].map(e => (
+                      <div key={e.event} style={{ padding: '10px 14px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                          <code style={{ fontSize: 11, color: 'var(--accent-primary)' }}>{e.event}</code>
+                          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 99, background: e.auto ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: e.auto ? '#10B981' : '#F59E0B' }}>
+                            {e.auto ? 'automático' : 'manual'}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{e.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                </div>{/* fecha wrapper padding */}
+              </div>
+            );
+          })()}
 
           {['security', 'region'].includes(activeSection) && (
             <div className="card settings-panel empty-state">
