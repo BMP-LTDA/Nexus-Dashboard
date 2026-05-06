@@ -1,7 +1,21 @@
 import { supabase } from '../lib/supabase';
 import { getPeriodDateRanges } from '../lib/dateUtils';
 
+// Cache simples de account slug → UUID (evita re-lookup a cada chamada)
+const _accountCache = {};
+
 export const ordersService = {
+  /**
+   * Resolve o UUID de uma conta pelo slug, com cache em memória
+   */
+  async _resolveAccount(slug) {
+    if (_accountCache[slug]) return _accountCache[slug];
+    const { data, error } = await supabase.from('accounts').select('id').eq('slug', slug).single();
+    if (error || !data?.id) return null;
+    _accountCache[slug] = data.id;
+    return data.id;
+  },
+
   /**
    * Busca recursivamente todos os pedidos contornando o limite de 1000 rows do Supabase
    */
@@ -14,7 +28,8 @@ export const ordersService = {
       let query = supabase
         .from('orders')
         .select(selectCols)
-        .eq('account_id', accountId);
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false });
         
       if (startStr) query = query.gte('created_at', startStr);
       if (endStr) query = query.lte('created_at', endStr);
@@ -61,13 +76,8 @@ export const ordersService = {
    */
   async getRevenueMetrics(accountSlug, period) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
-
-      if (accError || !account?.id) return null;
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return null;
 
       const { current, prior } = getPeriodDateRanges(period);
       const currentStart = current.start.toISOString();
@@ -75,7 +85,8 @@ export const ordersService = {
       const priorStart = prior.start.toISOString();
       const priorEnd = prior.end.toISOString();
 
-      const records = await this.fetchAllOrders(account.id, priorStart, currentEnd);
+      // Seleciona apenas colunas necessárias (exclui 'items' pesado)
+      const records = await this.fetchAllOrders(accountId, priorStart, currentEnd, 'created_at, amount, status, payment_status, customer_name');
 
       let gross = 0, prevGross = 0;
       let net = 0, prevNet = 0;
@@ -163,16 +174,13 @@ export const ordersService = {
    */
   async getRetentionMetrics(accountSlug, period) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return null;
 
-      if (accError || !account?.id) return null;
-
-      // Para retenção, precisamos de todo o histórico do cliente, então buscamos sem limite de data
-      const records = await this.fetchAllOrders(account.id, null, null, 'customer_name, created_at, amount, status, payment_status');
+      // Limita a 12 meses de histórico para não baixar todo o banco
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const records = await this.fetchAllOrders(accountId, twelveMonthsAgo.toISOString(), null, 'customer_name, created_at, amount, status, payment_status');
 
       const { current, prior } = getPeriodDateRanges(period);
       const currentStart = current.start.toISOString();
@@ -259,19 +267,14 @@ export const ordersService = {
    */
   async getTopProducts(accountSlug, period) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
-
-      if (accError || !account?.id) return null;
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return null;
 
       const { current } = getPeriodDateRanges(period);
       const currentStart = current.start.toISOString();
       const currentEnd = current.end.toISOString();
 
-      const records = await this.fetchAllOrders(account.id, currentStart, currentEnd, 'status, payment_status, items');
+      const records = await this.fetchAllOrders(accountId, currentStart, currentEnd, 'status, payment_status, items');
 
       const productsMap = {};
 
@@ -321,15 +324,12 @@ export const ordersService = {
    */
   async getMonthlyCustomerTimeline(accountSlug) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return [];
 
-      if (accError || !account?.id) return [];
-
-      const records = await this.fetchAllOrders(account.id, null, null, 'customer_name, created_at, status, payment_status');
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const records = await this.fetchAllOrders(accountId, twelveMonthsAgo.toISOString(), null, 'customer_name, created_at, status, payment_status');
 
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
@@ -392,15 +392,12 @@ export const ordersService = {
    */
   async getCohortData(accountSlug) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return [];
 
-      if (accError || !account?.id) return [];
-
-      const records = await this.fetchAllOrders(account.id, null, null, 'customer_name, created_at, status, payment_status');
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const records = await this.fetchAllOrders(accountId, twelveMonthsAgo.toISOString(), null, 'customer_name, created_at, status, payment_status');
 
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
@@ -472,15 +469,12 @@ export const ordersService = {
    */
   async getCustomerSegments(accountSlug) {
     try {
-      const { data: account, error: accError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('slug', accountSlug)
-        .single();
+      const accountId = await this._resolveAccount(accountSlug);
+      if (!accountId) return { champion: 0, atRisk: 0 };
 
-      if (accError || !account?.id) return { champion: 0, atRisk: 0 };
-
-      const records = await this.fetchAllOrders(account.id, null, null, 'customer_name, created_at, amount, status, payment_status');
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const records = await this.fetchAllOrders(accountId, twelveMonthsAgo.toISOString(), null, 'customer_name, created_at, amount, status, payment_status');
 
       const isBilled = (o) => {
         const s = (o.status || '').toLowerCase();
