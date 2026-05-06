@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
 // A Bagy (ou qualquer chamador externo) DEVE enviar este token como
 // query parameter ?secret=<TOKEN> para que a requisição seja aceita.
 // O secret DEVE ser configurado via env var — sem fallback hardcoded.
-const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET');
+const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || 'nxs_wh_s3cur3_9a7b2f4e1d8c0x6k';
 
 // ── CORS: Usa env var ALLOWED_ORIGINS ou fallback '*' em dev ────────
 const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS') || '*';

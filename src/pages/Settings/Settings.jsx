@@ -561,7 +561,7 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
                 </div>
                 
                 <div style={{ marginTop: '20px', padding: '24px', border: '1px dashed var(--border-color)', borderRadius: '8px', textAlign: 'center' }}>
-                  <Database size={40} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                  <Database size={40} style={{ color: 'var(--text-muted)', marginBottom: '16px', display: 'block', margin: '0 auto 16px' }} />
                   <h3 style={{ marginBottom: '8px', color: 'var(--text-primary)' }}>Upload de Exportação Bagy</h3>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '13px' }}>
                     Carregue seu arquivo "pedidos exportados.csv". Os dados serão parseados localmente e preparados para envio.
@@ -597,7 +597,7 @@ export default function Settings({ currentAccount, onOrdersUploaded }) {
                 </div>
                 
                 <div style={{ marginTop: '20px', padding: '24px', border: '1px dashed var(--border-color)', borderRadius: '8px', textAlign: 'center' }}>
-                  <Globe size={40} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                  <Globe size={40} style={{ color: 'var(--text-muted)', marginBottom: '16px', display: 'block', margin: '0 auto 16px' }} />
                   <h3 style={{ marginBottom: '8px', color: 'var(--text-primary)' }}>Upload de Investimento em Mídia</h3>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '13px' }}>
                     O CSV deve conter as colunas: Data, Valor Gasto, Impressões, Cliques.

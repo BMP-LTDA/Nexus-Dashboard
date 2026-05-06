@@ -10,10 +10,15 @@
     "splash": {
       "backgroundColor": "#0D0F14"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nexus.analytics"
+      "bundleIdentifier": "com.nexus.analytics",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,10 +36,19 @@
           "color": "#6366F1",
           "sounds": []
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e55c36d4-2384-42f7-8fcf-51eac6732738"
+      }
     }
   }
 }

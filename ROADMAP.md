@@ -1,6 +1,27 @@
 # Nexus Analytics — Roadmap & Status
 
-> Última atualização: Abril 2026
+> Última atualização: 06 de Maio de 2026
+
+---
+
+## 📝 Log de Ajustes — 06/Mai/2026
+
+### MCP Supabase reconectado ao projeto correto
+- O MCP estava conectado a um projeto de finanças pessoais (tabelas `bank_connections`, `budgets`, etc.) em vez do Nexus Dashboard.
+- **Fix:** Atualizado `mcp_config.json` com `?project_ref=vvtalmhfdchhwlzqgnvt` para apontar ao projeto correto.
+- **Status:** ✅ Resolvido
+
+### Webhook `bagy-webhook` retornando 401 em TODOS os pedidos
+- **Causa 1:** A Edge Function estava deployada com `verify_jwt: true`. Como a Bagy não envia JWT, o Supabase rejeitava a request antes de chegar ao código.
+- **Causa 2:** A env var `WEBHOOK_SECRET` não estava configurada no servidor. O código não tinha fallback.
+- **Fix:** Redeploy via `npx supabase functions deploy bagy-webhook --no-verify-jwt` com fallback hardcoded para o secret.
+- **Impacto:** ~8 dias de pedidos perdidos (28/Abr → 06/Mai). Recomenda-se re-importar via CSV.
+- **Status:** ✅ Resolvido — novos pedidos já entram normalmente
+
+### Ícones desalinhados em Settings (Integração de Dados)
+- Os ícones `Database` e `Globe` na seção de Integrações estavam alinhados à esquerda em vez de centralizados.
+- **Fix:** Adicionado `display: 'block'` e `margin: '0 auto'` nos ícones SVG.
+- **Status:** ✅ Resolvido
 
 ---
 
@@ -248,9 +269,12 @@ npx expo start
 - [ ] Adicionar eventos manuais (`addToCart`, `beginCheckout`, `purchase`) nos locais corretos do tema
 
 ### App Mobile
+- [x] Resolver dependências do React e instalar `expo-asset` para rodar localmente
+- [x] Configurar ambiente local (`mobile/.env` preenchido)
+- [x] Configurar EAS: `eas build:configure` (Conta `CLKmkt` conectada com sucesso)
+- [x] Teste Local (`npx expo start`) rodando perfeitamente
 - [ ] Criar ícones: `mobile/assets/icon.png` e `mobile/assets/notification-icon.png`
-- [ ] Configurar EAS: `eas build:configure` (Requer conta expo.dev)
-- [ ] Publicar build de teste via `eas build --profile preview`
+- [ ] Debuggar erro no Prebuild do EAS ao gerar o APK na nuvem: `eas build --profile preview --platform android`
 
 ---
 
@@ -267,8 +291,8 @@ npx expo start
 - [ ] Solicitar `GOOGLE_ADS_DEVELOPER_TOKEN` no Centro de API do Google Ads
 
 ### Git & Deploy
-- [ ] Realizar commit e push do repositório para o GitHub (Para atualizar a Vercel com os últimos arquivos, como o Pixel)
+- [x] Realizar commit e push do repositório para o GitHub (Para atualizar a Vercel com os últimos arquivos, como o Pixel)
 
 ### Expo (App Mobile)
-- [ ] Criar conta gratuita em expo.dev
-- [ ] Logar no CLI via `eas login` com o username/senha criados
+- [x] Criar conta gratuita em expo.dev
+- [x] Logar no CLI via `eas login` com o username/senha criados
